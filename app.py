@@ -116,20 +116,23 @@ def unauthorized_handler():
 #you can specify specific methods (GET/POST) in function header instead of inside the functions as seen earlier
 @app.route("/register", methods=['GET'])
 def register():
-	return render_template('register.html', supress='True')
+	return render_template('register.html', suppress='True')
 
 @app.route("/register", methods=['POST'])
 def register_user():
 	try:
 		email=request.form.get('email')
 		password=request.form.get('password')
+		first_name = request.form.get('first_name')
+		last_name = request.form.get('last_name')
+		dob = request.form.get('dob')
 	except:
 		print("couldn't find all tokens") #this prints to shell, end users will not see this (all print statements go to shell)
 		return flask.redirect(flask.url_for('register'))
 	cursor = conn.cursor()
 	test =  isEmailUnique(email)
 	if test:
-		print(cursor.execute("INSERT INTO Users (email, password) VALUES ('{0}', '{1}')".format(email, password)))
+		print(cursor.execute("INSERT INTO Users (email, password, first_name, last_name, dob) VALUES ('{0}', '{1}', '{2}', '{3}', '{4}')".format(email, password, first_name, last_name, dob)))
 		conn.commit()
 		#log user in
 		user = User()
@@ -137,8 +140,9 @@ def register_user():
 		flask_login.login_user(user)
 		return render_template('hello.html', name=email, message='Account Created!')
 	else:
-		print("couldn't find all tokens")
+		print("email is already used")
 		return flask.redirect(flask.url_for('register'))
+
 
 def getUsersPhotos(uid):
 	cursor = conn.cursor()

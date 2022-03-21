@@ -90,6 +90,3 @@ CREATE TABLE Tagged (
   FOREIGN KEY (picture_id) REFERENCES Pictures(picture_id) ON DELETE CASCADE,
   FOREIGN KEY (tag_name) REFERENCES Tags(tag_name) ON DELETE CASCADE
 );
-
--- INSERT INTO Users (email, password) VALUES ('test@bu.edu', 'test', 'test_first_name', 'test_last_name');
--- INSERT INTO Users (email, password) VALUES ('test1@bu.edu', 'test');
