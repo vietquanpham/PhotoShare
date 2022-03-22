@@ -1,0 +1,16 @@
+<title>Photos</title>
+{% if photos %}
+<h2>Your photos</h2>
+    <ul>
+    {% for photo in photos %}
+    <a href='{{url_for('get_single_photo', pid=photo[1])}}'>
+        <img src='data:image/jpg;base64, {{ base64.b64encode(photo[0]).decode("ascii") }}' width=auto height=500px/>
+    </a>
+    {% endfor %}
+    </ul>
+{% else %}
+<p> You have no photos. Create an <a href='/albums/create'>album</a> and upload new photos!</p>
+{% endif %}
+<ul>
+    <li><a href='/'>Home</a></li>
+</ul>

@@ -42,7 +42,9 @@
 </ul>
 {% else %}
   <p> You have no album. Create <a href='/albums/create'>one</a>?</p>
+  <a href='/'>Home</a>
 {% endif %}
+
 <script>
   const deleteBtn = document.getElementById("delete");
   deleteBtn.onclick = function(e) {

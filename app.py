@@ -12,7 +12,7 @@
 from calendar import c
 import pickletools
 from re import A
-from winreg import DeleteValue
+# from winreg import DeleteValue
 import flask
 from flask import Flask, Response, request, render_template, redirect, url_for
 from flaskext.mysql import MySQL
@@ -49,6 +49,11 @@ cursor = conn.cursor()
 def getUserList():
 	cursor = conn.cursor()
 	cursor.execute("SELECT email from Users")
+	return cursor.fetchall()
+
+def getUserListById():
+	cursor = conn.cursor()
+	cursor.execute("SELECT user_id from Users")
 	return cursor.fetchall()
 
 class User(flask_login.UserMixin):
@@ -107,7 +112,8 @@ def login():
 			user = User()
 			user.id = email
 			flask_login.login_user(user) #okay login in user
-			return flask.redirect(flask.url_for('protected')) #protected is a function defined in this file
+			user_id = getUserIdFromEmail(email)
+			return flask.redirect(flask.url_for('protected', uid = user_id)) #protected is a function defined in this file
 
 	#information did not match
 	return "<a href='/login'>Try again</a>\
@@ -116,7 +122,8 @@ def login():
 @app.route('/logout')
 def logout():
 	flask_login.logout_user()
-	return render_template('hello.html', message='Logged out')
+	# return render_template('hello.html', message='Logged out')
+	return flask.redirect(flask.url_for('hello'))
 
 @login_manager.unauthorized_handler
 def unauthorized_handler():
@@ -147,10 +154,52 @@ def register_user():
 		user = User()
 		user.id = email
 		flask_login.login_user(user)
-		return render_template('hello.html', name=email, message='Account Created!')
+		user_id = getUserIdFromEmail(email)
+		return flask.redirect(flask.url_for('protected', uid = user_id))
 	else:
 		print("email is already used")
 		return flask.redirect(flask.url_for('register'))
+
+def getUserIdFromEmail(email):
+	cursor = conn.cursor()
+	cursor.execute("SELECT user_id  FROM Users WHERE email = '{0}'".format(email))
+	return cursor.fetchone()[0]
+
+def getUserNameFromEmail(email):
+	cursor = conn.cursor()
+	cursor.execute("SELECT first_name, last_name  FROM Users WHERE email = '{0}'".format(email))
+	return cursor.fetchone()
+
+def getUserNameFromId(uid):
+	cursor = conn.cursor()
+	cursor.execute("SELECT first_name, last_name  FROM Users WHERE user_id = '{0}'".format(uid))
+	return cursor.fetchone()
+
+def isEmailUnique(email):
+	#use this to check if a email has already been registered
+	cursor = conn.cursor()
+	if cursor.execute("SELECT email  FROM Users WHERE email = '{0}'".format(email)):
+		#this means there are greater than zero entries with that email
+		return False
+	else:
+		return True
+#end login code
+
+@app.route('/profile/<uid>', methods=['GET'])
+@flask_login.login_required
+def protected(uid = -1):
+	assert uid != -1
+	if int(uid) != getUserIdFromEmail(flask_login.current_user.id):
+		userList = getUserListById()
+		if uid not in str(userList):
+			return flask.redirect(flask.url_for('protected', uid=getUserIdFromEmail(flask_login.current_user.id)))
+		name = getUserNameFromId(uid)
+		return render_template('altProfile.html', name=" ".join(name))
+	name = getUserNameFromEmail(flask_login.current_user.id)
+	return render_template('hello.html', name=" ".join(name), message="Here's your profile")
+
+#begin code for albums and photos management
+# photos uploaded using base64 encoding so they can be directly embeded in HTML
 
 def isPhotoOfCurrentUser(uid, pid):
 	cursor = conn.cursor()
@@ -214,28 +263,6 @@ def getAlbumsName(aid):
 	cursor.execute("SELECT name FROM Albums WHERE album_id = '{0}'".format(aid))
 	return cursor.fetchone()[0]
 
-def getUserIdFromEmail(email):
-	cursor = conn.cursor()
-	cursor.execute("SELECT user_id  FROM Users WHERE email = '{0}'".format(email))
-	return cursor.fetchone()[0]
-
-def isEmailUnique(email):
-	#use this to check if a email has already been registered
-	cursor = conn.cursor()
-	if cursor.execute("SELECT email  FROM Users WHERE email = '{0}'".format(email)):
-		#this means there are greater than zero entries with that email
-		return False
-	else:
-		return True
-#end login code
-
-@app.route('/profile')
-@flask_login.login_required
-def protected():
-	return render_template('hello.html', name=flask_login.current_user.id, message="Here's your profile")
-
-#begin photo uploading code
-# photos uploaded using base64 encoding so they can be directly embeded in HTML
 ALLOWED_EXTENSIONS = set(['png', 'jpg', 'jpeg', 'gif'])
 def allowed_file(filename):
 	return '.' in filename and filename.rsplit('.', 1)[1] in ALLOWED_EXTENSIONS
@@ -256,7 +283,6 @@ def upload_photo(album_id = -1):
 	#The method is GET so we return a  HTML form to upload the a photo.
 	else:
 		return render_template('upload.html',aid=album_id)
-#end photo uploading code
 
 # create album
 @app.route('/albums/create', methods=['GET', 'POST'])
@@ -273,8 +299,6 @@ def create_album():
 	#The method is GET so we return a  HTML form to upload the a photo.
 	else:
 		return render_template('albumCreate.html')
-#end photo uploading code
-
 
 
 @app.route("/photo/<pid>", methods=['GET'])
@@ -290,13 +314,13 @@ def get_single_photo(pid=-1):
 		aid = deletePicture(pid)
 		return redirect(url_for('get_single_album', album_id=aid),code=303)
 
+
 @app.route("/photo/<pid>", methods=['DELETE'])
 @flask_login.login_required
 def delete_photo(pid=-1):
 	assert pid != -1
 	aid = deletePicture(pid)
 	return redirect(url_for('get_single_album', album_id=aid),code=303)
-
 
 
 @app.route('/albums/<album_id>', methods=['GET'])
@@ -314,13 +338,18 @@ def delete_album(album_id=-1):
 	deleteAlbum(album_id)
 	return redirect(url_for('get_all_user_albums'),code=303)
 
-
 # albums view
 @app.route("/albums", methods=['GET'])
 @flask_login.login_required
 def get_all_user_albums():
 	uid = getUserIdFromEmail(flask_login.current_user.id)
 	return render_template('albumsView.html', albums=getUsersAlbums(uid))
+
+@app.route("/photos", methods=['GET'])
+@flask_login.login_required
+def get_all_user_photos():
+	uid = getUserIdFromEmail(flask_login.current_user.id)
+	return render_template('photosView.html', photos=getUsersPhotos(uid),base64=base64)
 
 @app.route("/all_albums", methods=['GET'])
 def get_all_albums():
@@ -330,11 +359,67 @@ def get_all_albums():
 def get_all_photos():
 	return render_template('allPhotosView.html', photos=getAllPhotos(),base64=base64)
 
+#end code for albums and photos management
 
+#begin code for friends management
+def find_people(fname, lname):
+	cursor = conn.cursor()
+	uid = getUserIdFromEmail(flask_login.current_user.id)
+	cursor.execute("SELECT user_id, first_name, last_name FROM Users WHERE user_id <> '{0}' AND (first_name = '{1}' OR last_name = '{2}')".format(uid, fname, lname))
+	return cursor.fetchall()
+
+def add_friend_(fid):
+	uid = getUserIdFromEmail(flask_login.current_user.id)
+	cursor = conn.cursor()
+	cursor.execute("INSERT INTO Friendships (user_id, friend_id) VALUES ('{0}', '{1}')".format(uid, fid))
+
+def unfriend_(fid):
+	uid = getUserIdFromEmail(flask_login.current_user.id)
+	cursor = conn.cursor()
+	cursor.execute("DELETE FROM Friendships WHERE (Friendships.user_id = '{0}' AND Friendships.friend_id = '{1}') OR (Friendships.user_id = '{1}' AND Friendships.friend_id = '{0}')".format(uid, fid))
+	conn.commit()
+
+def get_all_friends_(uid):
+	cursor = conn.cursor()
+	cursor.execute("(SELECT Friendships.friend_id, Users.first_name, Users.last_name FROM Friendships INNER JOIN Users ON Friendships.friend_id = Users.user_id WHERE Friendships.user_id = '{0}') UNION (SELECT Friendships.user_id, Users.first_name, Users.last_name FROM Friendships INNER JOIN Users ON Friendships.user_id = Users.user_id WHERE Friendships.friend_id = '{0}')".format(uid))
+	return cursor.fetchall()
+
+@app.route("/friend_search", methods=['GET', 'POST'])
+@flask_login.login_required
+def friend_search():
+	if flask.request.method == 'GET':
+		return render_template('friendSearch.html')
+	first_name = flask.request.form['first_name']
+	last_name = flask.request.form['last_name']
+	return render_template('friendSearch.html', people_list=find_people(first_name, last_name))
+
+@app.route('/profile/<uid>', methods=['POST'])
+@flask_login.login_required
+def add_friend(uid=-1):
+	assert uid != -1
+	add_friend_(uid)
+	return redirect(url_for('get_all_friends'))
+
+@app.route('/profile/<uid>', methods=['DELETE'])
+@flask_login.login_required
+def unfriend(uid=-1):
+	assert uid != -1
+	unfriend_(uid)
+	return redirect(url_for('get_all_friends'))
+
+@app.route('/all_friends', methods=['GET'])
+@flask_login.login_required
+def get_all_friends():
+	uid = getUserIdFromEmail(flask_login.current_user.id)
+	return render_template('friendsList.html', friends=get_all_friends_(uid))
+
+#end code for friends management
 
 #default page
 @app.route("/", methods=['GET'])
 def hello():
+	if flask_login.current_user.is_authenticated:
+		return flask.redirect(flask.url_for('protected', uid=getUserIdFromEmail(flask_login.current_user.id)))
 	return render_template('hello.html', message='Welcome to Photoshare')
 
 

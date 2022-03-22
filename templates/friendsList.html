@@ -1,0 +1,52 @@
+<head>
+    <title>Friend Search</title>
+    <style>
+        table {
+            border-collapse: collapse;
+        }
+        th {
+            background-color:#5e81ac;
+            Color:white;
+        }
+        th, td {
+            width:150px;
+            text-align:center;
+            border:1px solid #2e3440;
+            padding:5px
+        
+        }
+    </style>
+</head>
+<body>
+    <h2>Your Friends</h2>
+    {% if friends %}
+        <table name=friends cellspacing=2 width="50%" cellpadding=0 border=0>
+            <tbody>
+                <tr cellspacing=2 width="50%" cellpadding=0 border=0>
+                    <th>Name</th>
+                </tr>
+                {% for friend in friends %}
+                <tr cellspacing=2 width="50%" cellpadding=0 border=0>
+                    <td><a href="{{url_for('protected', uid=friend[0])}}">{{friend[1] + " " + friend[2]}}</a></td>
+                    <td><button id="delete" data-id="{{friend[0]}}">Unfriend</button></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table> 
+    {% endif %}
+    <a href='/'>Home</a>
+</body>
+<script>
+    const deleteBtn = document.getElementById("delete");
+    deleteBtn.onclick = function(e) {
+          const uid = e.target.dataset["id"];
+          fetch(`/profile/${uid}`, {
+          method: "DELETE",
+          }).then(response => {
+              if (response.redirected) {
+                  window.location.href = response.url;
+              }
+          })
+      };
+  
+  </script>

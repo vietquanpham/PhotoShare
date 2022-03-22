@@ -5,9 +5,12 @@
         <div class="title">
             <h1>Create an album on Photoshare</h1>
         </div>
-            <form enctype="multipart/form-data" action='{{url_for('create_album')}}' method="POST">
-                <label for="name">Your album name:</label>
-                <input type="text" name="name" required='true' /><br />
-                <input type="submit" value="Upload" />
-            </form>
+        <form enctype="multipart/form-data" action='{{url_for('create_album')}}' method="POST">
+            <label for="name">Your album name:</label>
+            <input type="text" name="name" required='true' /><br />
+            <input type="submit" value="Upload" />
+        </form>
+        <ul>
+            <li><a href='/'>Home</a></li>
+        </ul>
     </body>

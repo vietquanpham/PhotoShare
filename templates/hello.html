@@ -5,9 +5,14 @@
 {% endif %}
 <title>Photoshare</title>
 {% if current_user.is_authenticated %}
-  <h1>Hello {{ current_user.id }}!</h1>
+  <h1>Hello, {{ name }}!</h1>
   <ul>
   <li><a href="{{url_for('get_all_user_albums')}}">View your albums</a> </li>
+  <li><a href="{{url_for('get_all_user_photos')}}">View your photos</a> </li>
+  <li><a href="{{url_for('get_all_albums')}}">View all albums</a> </li>
+  <li><a href="{{url_for('get_all_photos')}}">View all photos</a> </li>
+  <li><a href="{{url_for('friend_search')}}">Friend search</a> </li>
+  <li><a href="{{url_for('get_all_friends')}}">Friends list</a> </li>
   <li><a href='/logout'>Logout</a></li>
   </ul>
 {% else %}
