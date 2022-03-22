@@ -1,0 +1,60 @@
+<title>Album</title>
+<style>
+    table {
+        border-collapse: collapse;
+    }
+    th {
+        background-color:#5e81ac;
+        Color:white;
+    }
+    th, td {
+        width:150px;
+        text-align:center;
+        border:1px solid #2e3440;
+        padding:5px
+      
+    }
+    </style>
+
+{% if message %}
+  <h4>{{message}}!</h4>
+{% endif %}
+{% if albums %}
+<h2>Your albums</h2>
+<table name=albums cellspacing=2 width="50%" cellpadding=0 border=0>
+    <tbody>
+    <tr cellspacing=2 width="50%" cellpadding=0 border=0>
+      <th>Name</th>
+      <th>Date created</th>
+    </tr>
+    {% for album in albums %}
+      <tr cellspacing=2 width="50%" cellpadding=0 border=0>
+        <td><a href="{{url_for('get_single_album', album_id=album[0])}}">{{album[1]}}</a></td>
+        <td>{{album[2]}}</td>
+        <td><button id="delete" data-id="{{album[0]}}">Delete album</button></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table> 
+<ul>
+    <li><a href='/albums/create'>Create new album</a></li>
+    <li><a href='/'>Home</a></li>
+</ul>
+{% else %}
+  <p> You have no album. Create <a href='/albums/create'>one</a>?</p>
+{% endif %}
+<script>
+  const deleteBtn = document.getElementById("delete");
+  deleteBtn.onclick = function(e) {
+        const aid = e.target.dataset["id"];
+        fetch(`/albums/${aid}`, {
+        method: "DELETE",
+        }).then(response => {
+            if (response.redirected) {
+                window.location.href = response.url;
+            }
+        })
+    };
+
+</script>
+

@@ -1,0 +1,41 @@
+<title>Album</title>
+<style>
+    table {
+        border-collapse: collapse;
+    }
+    th {
+        background-color:#5e81ac;
+        Color:white;
+    }
+    th, td {
+        width:150px;
+        text-align:center;
+        border:1px solid #2e3440;
+        padding:5px
+      
+    }
+    </style>
+{% if albums %}
+<h2>All albums</h2>
+<table name=albums cellspacing=2 width="50%" cellpadding=0 border=0>
+    <tbody>
+    <tr cellspacing=2 width="50%" cellpadding=0 border=0>
+      <th>Name</th>
+      <th>Date created</th>
+      <th>Author</th>
+    </tr>
+    {% for album in albums %}
+      <tr cellspacing=2 width="50%" cellpadding=0 border=0>
+        <td><a href="{{url_for('get_single_album', album_id=album[0])}}">{{album[1]}}</a></td>
+        <td>{{album[2]}}</td>
+        <td>{{album[3]}} {{album[4]}}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table> 
+{% else %}
+<p> No album has been created to the platform yet. <a href='/register'>Sign up</a> to create!</p>
+{% endif %}
+<ul>
+    <li><a href='/'>Home</a></li>
+</ul>

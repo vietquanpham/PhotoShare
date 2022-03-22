@@ -9,10 +9,15 @@
 # see links for further understanding
 ###################################################
 
+from calendar import c
+import pickletools
+from re import A
+from winreg import DeleteValue
 import flask
 from flask import Flask, Response, request, render_template, redirect, url_for
 from flaskext.mysql import MySQL
 import flask_login
+from datetime import datetime
 
 #for image uploading
 import os, base64
@@ -28,14 +33,18 @@ app.config['MYSQL_DATABASE_DB'] = 'photoshare'
 app.config['MYSQL_DATABASE_HOST'] = 'localhost'
 mysql.init_app(app)
 
+class Anonymous(flask_login.mixins.AnonymousUserMixin):
+  def __init__(self):
+    self.id = -1
+
 #begin code used for login
 login_manager = flask_login.LoginManager()
+login_manager.anonymous_user = Anonymous
 login_manager.init_app(app)
 
 conn = mysql.connect()
 cursor = conn.cursor()
-cursor.execute("SELECT email from Users")
-users = cursor.fetchall()
+
 
 def getUserList():
 	cursor = conn.cursor()
@@ -143,11 +152,67 @@ def register_user():
 		print("email is already used")
 		return flask.redirect(flask.url_for('register'))
 
+def isPhotoOfCurrentUser(uid, pid):
+	cursor = conn.cursor()
+	cursor.execute("SELECT user_id FROM Pictures WHERE picture_id = '{0}'".format(pid))
+	picture_uid = cursor.fetchone()[0]
+	return picture_uid == uid
+
+def isAlbumOfCurrentUser(uid, aid):
+	cursor = conn.cursor()
+	cursor.execute("SELECT user_id FROM Albums WHERE album_id = '{0}'".format(aid))
+	album_uid = cursor.fetchone()[0]
+	return album_uid == uid
 
 def getUsersPhotos(uid):
 	cursor = conn.cursor()
-	cursor.execute("SELECT imgdata, picture_id, caption FROM Pictures WHERE user_id = '{0}'".format(uid))
+	cursor.execute("SELECT imgdata, picture_id FROM Pictures WHERE user_id = '{0}'".format(uid))
 	return cursor.fetchall() #NOTE return a list of tuples, [(imgdata, pid, caption), ...]
+
+def getAllPhotos():
+	cursor = conn.cursor()
+	cursor.execute("SELECT imgdata, picture_id FROM Pictures")
+	return cursor.fetchall() 
+
+def getAllAlbums():
+	cursor = conn.cursor()
+	cursor.execute("SELECT DISTINCT album_id, name, date_created, first_name, last_name FROM Albums INNER JOIN Users ON Albums.user_id = Users.user_id")
+	return cursor.fetchall()
+
+
+def getUsersAlbums(uid):
+	cursor = conn.cursor()
+	cursor.execute("SELECT album_id, name, date_created FROM Albums WHERE user_id = '{0}'".format(uid))
+	return cursor.fetchall()
+
+def deleteAlbum(aid):
+	cursor = conn.cursor()
+	cursor.execute("DELETE FROM Albums WHERE album_id = '{0}'".format(aid))
+	conn.commit()
+
+def deletePicture(pid):
+	cursor = conn.cursor()
+	cursor.execute("SELECT album_id FROM Pictures WHERE picture_id = '{0}'".format(pid))
+	aid = cursor.fetchone()[0]
+	cursor.execute("DELETE FROM Pictures WHERE picture_id = '{0}'".format(pid))
+	conn.commit()
+	return aid
+
+def getPicture(pid):
+	cursor = conn.cursor()
+	cursor.execute("SELECT imgdata, caption, picture_id FROM Pictures WHERE picture_id = '{0}'".format(pid))
+	return cursor.fetchone()
+
+
+def getAlbumsPhotos(aid):
+	cursor = conn.cursor()
+	cursor.execute("SELECT imgdata, picture_id FROM Pictures WHERE album_id = '{0}'".format(aid))
+	return cursor.fetchall()
+
+def getAlbumsName(aid):
+	cursor = conn.cursor()
+	cursor.execute("SELECT name FROM Albums WHERE album_id = '{0}'".format(aid))
+	return cursor.fetchone()[0]
 
 def getUserIdFromEmail(email):
 	cursor = conn.cursor()
@@ -175,28 +240,102 @@ ALLOWED_EXTENSIONS = set(['png', 'jpg', 'jpeg', 'gif'])
 def allowed_file(filename):
 	return '.' in filename and filename.rsplit('.', 1)[1] in ALLOWED_EXTENSIONS
 
-@app.route('/upload', methods=['GET', 'POST'])
+@app.route('/albums/<album_id>/upload', methods=['GET', 'POST'])
 @flask_login.login_required
-def upload_file():
+def upload_photo(album_id = -1):
+	assert album_id != -1
 	if request.method == 'POST':
 		uid = getUserIdFromEmail(flask_login.current_user.id)
 		imgfile = request.files['photo']
 		caption = request.form.get('caption')
 		photo_data =imgfile.read()
 		cursor = conn.cursor()
-		cursor.execute('''INSERT INTO Pictures (imgdata, user_id, caption) VALUES (%s, %s, %s )''', (photo_data, uid, caption))
+		cursor.execute('''INSERT INTO Pictures (imgdata, user_id, caption, album_id) VALUES (%s, %s, %s, %s)''', (photo_data, uid, caption,album_id))
 		conn.commit()
-		return render_template('hello.html', name=flask_login.current_user.id, message='Photo uploaded!', photos=getUsersPhotos(uid), base64=base64)
+		return render_template('singleAlbumView.html', message='Photo uploaded!', photos=getAlbumsPhotos(album_id), base64=base64,name=getAlbumsName(album_id),aid=album_id)
 	#The method is GET so we return a  HTML form to upload the a photo.
 	else:
-		return render_template('upload.html')
+		return render_template('upload.html',aid=album_id)
 #end photo uploading code
+
+# create album
+@app.route('/albums/create', methods=['GET', 'POST'])
+@flask_login.login_required
+def create_album():
+	if request.method == 'POST':
+		uid = getUserIdFromEmail(flask_login.current_user.id)
+		name = request.form.get('name')
+		date_created = datetime.today().strftime('%Y-%m-%d')
+		cursor = conn.cursor()
+		cursor.execute('''INSERT INTO Albums (name, user_id, date_created) VALUES (%s, %s, %s )''', (name, uid, date_created))
+		conn.commit()
+		return render_template('albumsView.html', message='Album created!', albums=getUsersAlbums(uid))
+	#The method is GET so we return a  HTML form to upload the a photo.
+	else:
+		return render_template('albumCreate.html')
+#end photo uploading code
+
+
+
+@app.route("/photo/<pid>", methods=['GET'])
+def get_single_photo(pid=-1):
+	assert pid != -1
+	if request.method == 'GET':
+		if flask_login.current_user.id == -1 or not isPhotoOfCurrentUser(getUserIdFromEmail(flask_login.current_user.id), pid):
+			return render_template('singlePhotoView.html', photo=getPicture(pid),base64=base64)
+		else:
+			return render_template('singlePhotoView.html', photo=getPicture(pid),base64=base64,canDelete="true")
+
+	else:
+		aid = deletePicture(pid)
+		return redirect(url_for('get_single_album', album_id=aid),code=303)
+
+@app.route("/photo/<pid>", methods=['DELETE'])
+@flask_login.login_required
+def delete_photo(pid=-1):
+	assert pid != -1
+	aid = deletePicture(pid)
+	return redirect(url_for('get_single_album', album_id=aid),code=303)
+
+
+
+@app.route('/albums/<album_id>', methods=['GET'])
+def get_single_album(album_id=-1):
+	assert album_id != -1
+	if flask_login.current_user.id == -1 or not isAlbumOfCurrentUser(getUserIdFromEmail(flask_login.current_user.id), album_id):
+		return render_template('singleAlbumView.html', photos=getAlbumsPhotos(album_id), name=getAlbumsName(album_id),aid=album_id,base64=base64)
+	return render_template('singleAlbumView.html', photos=getAlbumsPhotos(album_id), name=getAlbumsName(album_id),aid=album_id,base64=base64,canDelete="true")
+
+# delete album
+@app.route('/albums/<album_id>', methods=['DELETE'])
+@flask_login.login_required
+def delete_album(album_id=-1):
+	assert album_id != -1
+	deleteAlbum(album_id)
+	return redirect(url_for('get_all_user_albums'),code=303)
+
+
+# albums view
+@app.route("/albums", methods=['GET'])
+@flask_login.login_required
+def get_all_user_albums():
+	uid = getUserIdFromEmail(flask_login.current_user.id)
+	return render_template('albumsView.html', albums=getUsersAlbums(uid))
+
+@app.route("/all_albums", methods=['GET'])
+def get_all_albums():
+	return render_template('allAlbumsView.html', albums=getAllAlbums())
+
+@app.route("/all_photos", methods=['GET'])
+def get_all_photos():
+	return render_template('allPhotosView.html', photos=getAllPhotos(),base64=base64)
+
 
 
 #default page
 @app.route("/", methods=['GET'])
 def hello():
-	return render_template('hello.html', message='Welecome to Photoshare')
+	return render_template('hello.html', message='Welcome to Photoshare')
 
 
 if __name__ == "__main__":

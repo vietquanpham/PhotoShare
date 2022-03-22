@@ -1,0 +1,22 @@
+<title>Album | {{name}}</title>
+{% if message %}
+  <h4>{{message}}!</h4>
+{% endif %}
+<h2>{{name}}'s photos</h2>
+{% if photos %}
+    <ul>
+    {% for photo in photos %}
+    <a href='{{url_for('get_single_photo', pid=photo[1])}}'>
+        <img src='data:image/jpg;base64, {{ base64.b64encode(photo[0]).decode("ascii") }}' width=auto height=500px/>
+    </a>
+    {% endfor %}
+    </ul>
+    <ul>
+        {% if canDelete %}
+        <li><p><a href='{{url_for('upload_photo', album_id=aid)}}'>Upload</a> photo to this album.</p></li>
+        {% endif %}
+        <li><a href='/'>Home</a></li>
+    </ul>
+{% else %}
+<p> You have no photos in this album. <a href='{{url_for('upload_photo', album_id=aid)}}'>Upload</a> one?</p>
+{% endif %}

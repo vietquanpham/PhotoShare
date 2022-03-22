@@ -1,0 +1,16 @@
+<title>Photos</title>
+{% if photos %}
+<h2>All photos</h2>
+    <ul>
+    {% for photo in photos %}
+    <a href='{{url_for('get_single_photo', pid=photo[1])}}'>
+        <img src='data:image/jpg;base64, {{ base64.b64encode(photo[0]).decode("ascii") }}' width=auto height=500px/>
+    </a>
+    {% endfor %}
+    </ul>
+{% else %}
+<p> No photo has been upload to the platform yet. <a href='/register'>Sign up</a> to upload!</p>
+{% endif %}
+<ul>
+    <li><a href='/'>Home</a></li>
+</ul>

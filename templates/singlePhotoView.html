@@ -1,0 +1,29 @@
+{% if photo %}
+<img src='data:image/jpg;base64, {{ base64.b64encode(photo[0]).decode("ascii") }}'/></li>
+<p>{{photo[1]}}</p>
+<ul>
+    {% if canDelete %}
+    <li><button id="delete" data-id="{{photo[2]}}">Delete this photo</button></li>
+    {% endif %}
+    <li><a href='/'>Home</a></li>
+</ul>
+{% else %}
+<p>Photo does not exist!</p>
+<ul>
+    <li><a href='/'>Home</a></li>
+</ul>
+{% endif %}
+<script>
+    const deleteBtn = document.getElementById("delete");
+    deleteBtn.onclick = function(e) {
+          const pid = e.target.dataset["id"];
+          fetch(`/photo/${pid}`, {
+          method: "DELETE",
+          }).then(response => {
+              if (response.redirected) {
+                  window.location.href = response.url;
+              }
+          })
+      };
+
+</script>
