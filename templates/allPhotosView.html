@@ -1,16 +1,73 @@
 <title>Photos</title>
-{% if photos %}
-<h2>All photos</h2>
     <ul>
-    {% for photo in photos %}
-    <a href='{{url_for('get_single_photo', pid=photo[1])}}'>
-        <img src='data:image/jpg;base64, {{ base64.b64encode(photo[0]).decode("ascii") }}' width=auto height=500px/>
-    </a>
-    {% endfor %}
+        <h2>All photos</h2>
+
+        {% if tags %}
+        <table>
+            <tr>
+                <td>
+                    <form>
+                        <label for="tags">Choose most popular tags to search :</label>
+                        <select multiple name="tags" id="tags" required='true'>
+                            {% for tag in tags %}
+                            <option value='{{tag[0]}}'>{{tag[0]}}</option>
+                            {% endfor %}
+                        </select>
+                    </form>
+                </td>
+                <td> 
+                    <button onclick="var el = document.getElementsByTagName('select')[0];getPhotosFromTags(el);">Search</button>
+                </td>
+            </tr>
+        </table>
+        {% endif %}
+        <table>
+            <tr>
+                <td>
+                    <form method="post" enctype="multipart/form-data" action='{{url_for('get_all_photos')}}'>
+                        <label for="tags">Search by tags (multiple tags must be seperate by commas) :</label>
+                        <input type="text" multiple name="tags" required='true'>
+                        <input type="submit" value="Search">
+                    </form> 
+                </td>
+            </tr>
+        </table> 
+
     </ul>
-{% else %}
-<p> No photo has been upload to the platform yet. <a href='/register'>Sign up</a> to upload!</p>
-{% endif %}
+    <ul>
+    {% if photos %}
+        {% for photo in photos %}
+        <a href='{{url_for('get_single_photo', pid=photo[1])}}'>
+            <img src='data:image/jpg;base64, {{ base64.b64encode(photo[0]).decode("ascii") }}' width=auto height=500px/>
+        </a>
+        {% endfor %}
+    {% else %}
+        <p> No photo with such tags!</p>
+    {% endif %}
+    </ul>
 <ul>
     <li><a href='/'>Home</a></li>
 </ul>
+<script>
+    function getPhotosFromTags(select) {
+        var result = [];
+        var options = select && select.options;
+        var opt;
+
+        for (var i=0, iLen=options.length; i<iLen; i++) {
+            opt = options[i];
+
+            if (opt.selected) {
+            result.push(opt.value || opt.text);
+            }
+        }
+
+        fetch(`/all_photos/${result.toString()}`, {
+          method: "GET",
+          }).then(response => {
+                  window.location.href = response.url;
+          })
+
+
+    }
+</script>
