@@ -3,6 +3,7 @@
   <ul>
   <li><a href="{{url_for('get_all_user_albums')}}">View your albums</a> </li>
   <li><a href="{{url_for('get_all_user_photos')}}">View your photos</a> </li>
+  <li><a href="{{url_for('get_top_contributors')}}">View top contributors</a> </li>
   <li><a href="{{url_for('get_all_albums')}}">View all albums</a> </li>
   <li><a href="{{url_for('get_all_photos')}}">View all photos</a> </li>
   <li><a href="{{url_for('friend_search')}}">Friend search</a> </li>
@@ -12,8 +13,10 @@
   </ul>
 {% else %}
 <ul>
+  <li><a href="{{url_for('get_top_contributors')}}">View top contributors</a> </li>
   <li><a href="{{url_for('get_all_albums')}}">View all albums</a> </li>
   <li><a href="{{url_for('get_all_photos')}}">View all photos</a> </li>
   <li><a href='/login'>Login</a></li>
   <li><a href='/register'>Sign up</a></li>
 </ul>
+{% endif %}

@@ -1,0 +1,43 @@
+<title>Contributors</title>
+<style>
+    table {
+        border-collapse: collapse;
+    }
+    th {
+        background-color:#5e81ac;
+        Color:white;
+    }
+    th, td {
+        width:150px;
+        text-align:center;
+        border:1px solid #2e3440;
+        padding:5px
+      
+    }
+    </style>
+
+{% if contributors %}
+<h2>Top contributors</h2>
+<table name=contributors cellspacing=2 width="50%" cellpadding=0 border=0>
+    <tbody>
+    <tr cellspacing=2 width="50%" cellpadding=0 border=0>
+      <th>Name</th>
+      <th>Contributor score</th>
+    </tr>
+    {% for contributor in contributors %}
+      <tr cellspacing=2 width="50%" cellpadding=0 border=0>
+        <td>{{contributor[0]}} {{contributor[1]}}</td>
+        <td>{{contributor[2]}}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table> 
+<ul>
+    <li><a href='/'>Home</a></li>
+</ul>
+{% else %}
+  <p> There is no one here :(</p>
+  <a href='/'>Home</a>
+{% endif %}
+
+

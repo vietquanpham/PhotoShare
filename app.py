@@ -235,6 +235,20 @@ def getUsersPhotosByTags(uid, tags):
 		photos+=cursor.fetchall()
 	return [photo for photo, count in collections.Counter(photos).items() if count == len(t)]  
 
+def getTopContributors():
+	cursor = conn.cursor()
+	pictures = " SELECT user_id, COUNT(picture_id) AS num_pics FROM Pictures P GROUP BY user_id"
+	comments = "SELECT user_id, COUNT(comment_id) AS num_comments FROM Comments C GROUP BY user_id"
+	score = pictures + " UNION " + comments + " ORDER BY num_pics DESC"
+
+	scoreTable = "SELECT t1.user_id AS uid, SUM(t1.num_pics) AS score FROM (" + score + ") AS t1 GROUP BY t1.user_id ORDER BY score DESC LIMIT 10"
+	final = "SELECT u.first_name, u.last_name, s.score FROM (" + scoreTable + ") s, Users u WHERE s.uid = u.user_id ORDER BY s.score DESC LIMIT 10"
+	cursor.execute(final)
+	output = cursor.fetchall()
+	
+	return output
+
+
 def getTop10Tags():
 	cursor = conn.cursor()
 	cursor.execute("SELECT tag_name FROM Tags ORDER BY num_used DESC LIMIT 10")
@@ -580,6 +594,11 @@ def get_all_user_photos_by_tags(tags=""):
 	return render_template('photosView.html', photos=getUsersPhotosByTags(uid,tags),tags=getTop10Tags(),base64=base64)
 	
 #end code for tags management
+
+
+@app.route("/contributors", methods=['GET'])
+def get_top_contributors():
+	return render_template('contributors.html', contributors=getTopContributors())
 
 #default page
 @app.route("/", methods=['GET'])
