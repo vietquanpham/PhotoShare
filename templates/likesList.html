@@ -1,0 +1,37 @@
+<head>
+    <title>Likes list</title>
+    <style>
+        table {
+            border-collapse: collapse;
+        }
+        th {
+            background-color:#5e81ac;
+            Color:white;
+        }
+        th, td {
+            width:150px;
+            text-align:center;
+            border:1px solid #2e3440;
+            padding:5px
+        
+        }
+    </style>
+</head>
+<body>
+    <h2>Likes</h2>
+    {% if likes %}
+        <table name=likes cellspacing=2 width="50%" cellpadding=0 border=0>
+            <tbody>
+                <tr cellspacing=2 width="50%" cellpadding=0 border=0>
+                    <th>Name</th>
+                </tr>
+                {% for like in likes %}
+                <tr cellspacing=2 width="50%" cellpadding=0 border=0>
+                    <td><a href="{{url_for('protected', uid=like[0])}}">{{like[1] + " " + Likes[2]}}</a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table> 
+    {% endif %}
+    <button onclick="history.back()">Back</button>
+</body>

@@ -10,6 +10,7 @@
 ###################################################
 
 from calendar import c
+from getpass import getuser
 import pickletools
 from re import A
 # from winreg import DeleteValue
@@ -17,7 +18,7 @@ import flask
 from flask import Flask, Response, request, render_template, redirect, url_for
 from flaskext.mysql import MySQL
 import flask_login
-from datetime import datetime
+from datetime import datetime, date
 
 #for image uploading
 import os, base64
@@ -97,7 +98,7 @@ def login():
 			   <form action='login' method='POST'>
 				<input type='text' name='email' id='email' placeholder='email'></input>
 				<input type='password' name='password' id='password' placeholder='password'></input>
-				<input type='submit' name='submit'></input>
+				<input type='submit' name='submit' value='Log in'></input>
 			   </form></br>
 		   <a href='/'>Home</a>
 			   '''
@@ -305,10 +306,13 @@ def create_album():
 def get_single_photo(pid=-1):
 	assert pid != -1
 	if request.method == 'GET':
+		comments = get_comments_by_picture(pid)
+		photo = getPicture(pid)
+		num_likes = len(get_likes(pid))
 		if flask_login.current_user.id == -1 or not isPhotoOfCurrentUser(getUserIdFromEmail(flask_login.current_user.id), pid):
-			return render_template('singlePhotoView.html', photo=getPicture(pid),base64=base64)
+			return render_template('singlePhotoView.html', photo=photo,base64=base64,num_likes=num_likes,comments=comments,canComment="true")
 		else:
-			return render_template('singlePhotoView.html', photo=getPicture(pid),base64=base64,canDelete="true")
+			return render_template('singlePhotoView.html', photo=photo,base64=base64,num_likes=num_likes,comments=comments,canDelete="true")
 
 	else:
 		aid = deletePicture(pid)
@@ -369,9 +373,11 @@ def find_people(fname, lname):
 	return cursor.fetchall()
 
 def add_friend_(fid):
-	uid = getUserIdFromEmail(flask_login.current_user.id)
-	cursor = conn.cursor()
-	cursor.execute("INSERT INTO Friendships (user_id, friend_id) VALUES ('{0}', '{1}')".format(uid, fid))
+	if not check_if_friends(fid):
+		uid = getUserIdFromEmail(flask_login.current_user.id)
+		cursor = conn.cursor()
+		cursor.execute("INSERT INTO Friendships (user_id, friend_id) VALUES ('{0}', '{1}')".format(uid, fid))
+		conn.commit()
 
 def unfriend_(fid):
 	uid = getUserIdFromEmail(flask_login.current_user.id)
@@ -383,6 +389,14 @@ def get_all_friends_(uid):
 	cursor = conn.cursor()
 	cursor.execute("(SELECT Friendships.friend_id, Users.first_name, Users.last_name FROM Friendships INNER JOIN Users ON Friendships.friend_id = Users.user_id WHERE Friendships.user_id = '{0}') UNION (SELECT Friendships.user_id, Users.first_name, Users.last_name FROM Friendships INNER JOIN Users ON Friendships.user_id = Users.user_id WHERE Friendships.friend_id = '{0}')".format(uid))
 	return cursor.fetchall()
+
+def check_if_friends(fid):
+	uid = getUserIdFromEmail(flask_login.current_user.id)
+	cursor = conn.cursor()
+	cursor.execute("SELECT COUNT(U.uid) FROM ((SELECT Friendships.friend_id AS uid FROM Friendships WHERE Friendships.user_id = '{0}' AND Friendships.friend_id = '{1}') UNION (SELECT Friendships.user_id AS uid FROM Friendships WHERE Friendships.friend_id = '{0}' AND Friendships.user_id = '{1}')) AS U".format(uid, fid))
+	if cursor.fetchone()[0] == 0:
+		return False
+	return True
 
 @app.route("/friend_search", methods=['GET', 'POST'])
 @flask_login.login_required
@@ -414,6 +428,87 @@ def get_all_friends():
 	return render_template('friendsList.html', friends=get_all_friends_(uid))
 
 #end code for friends management
+
+#begin code for comments/likes management
+def get_comments_by_picture(pid):
+	cursor = conn.cursor()
+	cursor.execute("SELECT C.comment_id, C.text, C.user_id, C.date_created, U.first_name, U.last_name FROM Comments C, Users U WHERE C.picture_id = '{0}' AND C.user_id = U.user_id".format(pid))
+	return cursor.fetchall()
+
+def get_likes(pid):
+	cursor = conn.cursor()
+	cursor.execute("SELECT L.user_id, U.first_name, U.last_name FROM Likes L, Users U WHERE L.user_id = U.user_id AND L.picture_id = '{0}'".format(pid))
+	return cursor.fetchall()
+
+def check_if_user_liked(uid, pid):
+	cursor = conn.cursor()
+	cursor.execute("SELECT COUNT(user_id) FROM Likes WHERE user_id = '{0}' AND picture_id = '{1}'".format(uid, pid))
+	if cursor.fetchone()[0] == 0:
+		return False
+	return True
+
+def find_people_by_comment(text):
+	cursor = conn.cursor()
+	cursor.execute("SELECT C.user_id, U.first_name, U.last_name, COUNT(C.comment_id) FROM Comments C, Users U WHERE C.text = '{0}' AND C.user_id = U.user_id GROUP BY C.user_id ORDER BY COUNT(C.comment_id) DESC".format(text))
+	return cursor.fetchall()
+
+@app.route('/comment/<pid>', methods=['GET', 'POST'])
+def comment(pid = -1):
+	assert pid != -1
+	if flask.request.method == 'GET':
+		return flask.redirect(flask.url_for('get_single_photo', pid=pid))
+	text = request.form.get('text')
+	date_created = date.today()
+	if text != "":
+		cursor = conn.cursor()
+		if flask_login.current_user.is_authenticated:
+			uid = getUserIdFromEmail(flask_login.current_user.id)
+			cursor.execute("INSERT INTO Comments (text, user_id, picture_id, date_created) VALUES ('{0}', '{1}', '{2}', '{3}')".format(text, uid, pid, date_created))
+		else:
+			users = getUserList()
+			if 'anon@anon' not in str(users):
+				anon_user_id = flask_login.current_user.id
+				anon_email = 'anon@anon'
+				anon_password = 'anonymous'
+				anon_first_name = 'anonymous'
+				anon_last_name = 'anonymous'
+				anon_dob = date.today()
+				cursor = conn.cursor()
+				cursor.execute("INSERT INTO Users (user_id, email, password, first_name, last_name, dob) VALUES ('{0}', '{1}', '{2}', '{3}', '{4}', '{5}')".format(anon_user_id, anon_email, anon_password, anon_first_name, anon_last_name, anon_dob))
+				conn.commit()
+			cursor.execute("INSERT INTO Comments (text, user_id, picture_id, date_created) VALUES ('{0}', '{1}', '{2}', '{3}')".format(text, flask_login.current_user.id, pid, date_created))
+		conn.commit()
+	return flask.redirect(flask.url_for('get_single_photo', pid=pid), code=303)
+
+@app.route('/like/<pid>', methods=['GET', 'POST'])
+def like(pid = -1):
+	assert pid != -1
+	if flask.request.method == 'GET':
+		return flask.redirect(flask.url_for('get_single_photo', pid=pid))
+	uid = getUserIdFromEmail(flask_login.current_user.id)
+	if not check_if_user_liked(uid, pid):
+		cursor = conn.cursor()
+		cursor.execute("INSERT INTO Likes (user_id, picture_id) VALUES ('{0}', '{1}')".format(uid, pid))
+		conn.commit()
+	else:
+		cursor = conn.cursor()
+		cursor.execute("DELETE FROM Likes WHERE user_id = '{0}' AND picture_id = '{1}'".format(uid, pid))
+		conn.commit()
+	return flask.redirect(flask.url_for('get_single_photo', pid=pid))
+
+@app.route('/all_likes/<pid>', methods=['GET'])
+def all_likes(pid = -1):
+	assert pid != -1
+	return render_template('likesList.html', likes=get_likes(pid))
+
+@app.route('/comment_search', methods=['GET', 'POST'])
+def comment_search():
+	if flask.request.method == 'GET':
+		return render_template('commentSearch.html')
+	text = flask.request.form['text']
+	return render_template('commentSearch.html', people_list=find_people_by_comment(text))
+
+#end code for comments/likes management
 
 #default page
 @app.route("/", methods=['GET'])

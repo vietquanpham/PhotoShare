@@ -1,5 +1,5 @@
 <head>
-    <title>Friend Search</title>
+    <title>Comment Search</title>
     <style>
         table {
             border-collapse: collapse;
@@ -18,23 +18,23 @@
     </style>
 </head>
 <body>
-    <h2>Friend Search</h2>
-    <form action='friend_search' method='POST'>
-        <input type='text' name='first_name' id='first_name' placeholder='First name'></input>
-        <input type='text' name='last_name' id='last_name' placeholder='Last name'></input>
+    <h2>Comment Search</h2>
+    <form action='comment_search' method='POST'>
+        <textarea type="text" name="text" rows="4" cols="50"></textarea></br>
         <input type='submit' name='search' value='Search'></input>
     </form></br>
     {% if people_list %}
         <h1>Result:</h1>
-        <table name=friend_search cellspacing=2 width="50%" cellpadding=0 border=0>
+        <table name=comment_search cellspacing=2 width="50%" cellpadding=0 border=0>
             <tbody>
                 <tr cellspacing=2 width="50%" cellpadding=0 border=0>
                     <th>Name</th>
+                    <th>Number of matched comments</th>
                 </tr>
                 {% for person in people_list %}
                 <tr cellspacing=2 width="50%" cellpadding=0 border=0>
                     <td><a href="{{url_for('protected', uid=person[0])}}">{{person[1] + " " + person[2]}}</a></td>
-                    <td><button id="add" data-id="{{person[0]}}">Add friend</button></td>
+                    <td><p>{{ person[3] }}</p></td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -42,17 +42,3 @@
     {% endif %}
     <a href='/'>Home</a>
 </body>
-<script>
-    const addBtn = document.getElementById("add");
-    addBtn.onclick = function(e) {
-          const uid = e.target.dataset["id"];
-          fetch(`/profile/${uid}`, {
-          method: "POST",
-          }).then(response => {
-              if (response.redirected) {
-                  window.location.href = response.url;
-              }
-          })
-      };
-  
-  </script>

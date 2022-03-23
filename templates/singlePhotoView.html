@@ -1,24 +1,76 @@
+<style>
+    table {
+        border-collapse: collapse;
+    }
+    th {
+        background-color:#5e81ac;
+        Color:white;
+    }
+    th, td {
+        width:150px;
+        text-align:center;
+        border:1px solid #2e3440;
+        padding:5px
+    
+    }
+</style>
 {% if photo %}
-<img src='data:image/jpg;base64, {{ base64.b64encode(photo[0]).decode("ascii") }}'/></li>
-<p>{{photo[1]}}</p>
-<ul>
-    {% if canDelete %}
-    <li><button id="delete" data-id="{{photo[2]}}">Delete this photo</button></li>
+    <img src='data:image/jpg;base64, {{ base64.b64encode(photo[0]).decode("ascii") }}'/></li>
+    <p>{{photo[1]}}</p>
+    <a href="{{url_for('all_likes', pid=photo[2])}}">{{ num_likes }}</a>
+    <button id="like" data-id="{{photo[2]}}">Like</button>
+    <ul>
+        {% if canDelete %}
+        <li><button id="delete" data-id="{{photo[2]}}">Delete this photo</button></li>
+        {% endif %}
+    </ul>
+    {% if canComment %}
+        <form method="post" action="{{ url_for('comment', pid=photo[2]) }}">
+            <textarea type="text" name="text" rows="4" cols="50"></textarea></br>
+            <input type="submit" id="comment" name="comment" value="Comment"/>
+        </form></br>
     {% endif %}
-    <li><a href='/'>Home</a></li>
-</ul>
+    {% if comments %}
+        <p>Comments</p>
+        <table name=comments cellspacing=2 width="50%" cellpadding=0 border=0>
+            <tbody>
+                {% for comment in comments %}
+                <tr cellspacing=2 width="50%" cellpadding=0 border=0>
+                    <td><p>{{comment[1]}}</p></td>
+                    <td><p>{{comment[4] + " " + comment[5]}}</p></td>
+                    <td><p>{{comment[3]}}</p></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table> 
+    {% endif %}
 {% else %}
-<p>Photo does not exist!</p>
+    <p>Photo does not exist!</p>
+{% endif %}
 <ul>
     <li><a href='/'>Home</a></li>
 </ul>
-{% endif %}
+{% if canDelete %}
 <script>
     const deleteBtn = document.getElementById("delete");
     deleteBtn.onclick = function(e) {
           const pid = e.target.dataset["id"];
           fetch(`/photo/${pid}`, {
           method: "DELETE",
+          }).then(response => {
+              if (response.redirected) {
+                  window.location.href = response.url;
+              }
+          })
+      };
+</script>
+{% endif %}
+<script>
+    const likeBtn = document.getElementById("like");
+    likeBtn.onclick = function(e) {
+          const pid = e.target.dataset["id"];
+          fetch(`/like/${pid}`, {
+          method: "POST",
           }).then(response => {
               if (response.redirected) {
                   window.location.href = response.url;
