@@ -18,5 +18,9 @@
         <li><a href='/'>Home</a></li>
     </ul>
 {% else %}
-<p> You have no photos in this album. <a href='{{url_for('upload_photo', album_id=aid)}}'>Upload</a> one?</p>
+{% if canDelete %}
+    <p> You have no photos in this album. <a href='{{url_for('upload_photo', album_id=aid)}}'>Upload</a> one?</p>
+{% else %}
+    <p> This album have no photo.</p>
+{% endif %}
 {% endif %}

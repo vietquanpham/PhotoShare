@@ -1,6 +1,6 @@
 <title>Photos</title>
     <ul>
-        <h2>All photos</h2>
+        <h2>Your photos</h2>
 
         {% if tags %}
         <table>
@@ -24,7 +24,7 @@
         <table>
             <tr>
                 <td>
-                    <form method="post" enctype="multipart/form-data" action='{{url_for('get_all_photos')}}'>
+                    <form method="post" enctype="multipart/form-data" action='{{url_for('get_all_user_photos')}}'>
                         <label for="tags">Search by tags (multiple tags must be seperate by commas) :</label>
                         <input type="text" multiple name="tags" required='true'>
                         <input type="submit" value="Search">
@@ -62,7 +62,7 @@
             }
         }
 
-        fetch(`/all_photos/${result.toString()}`, {
+        fetch(`/photos/${result.toString()}`, {
           method: "GET",
           }).then(response => {
                   window.location.href = response.url;

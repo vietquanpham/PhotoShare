@@ -1,20 +1,16 @@
-<!-- author ben lawson (balawson@bu.edu) -->
-<!doctype html>
-{% if message %}
-  <h4>{{message}}!</h4>
-{% endif %}
-<title>Photoshare</title>
 {% if current_user.is_authenticated %}
   <h1>Hello {{ current_user.id }}!</h1>
   <ul>
-  <li><a href="{{url_for('get_all_user_albums')}}">View your albums</a> </li>
-  <li><a href='/logout'>Logout</a></li>
+    <li><a href="{{url_for('get_all_albums')}}">View all albums</a> </li>
+    <li><a href="{{url_for('get_all_photos')}}">View all photos</a> </li>
+    <li><a href="{{url_for('get_all_user_photos')}}">View your photos</a> </li>
+    <li><a href="{{url_for('get_all_user_albums')}}">View your albums</a> </li>
+    <li><a href='/logout'>Logout</a></li>
   </ul>
 {% else %}
 <ul>
-  <li><a href="{{url_for('get_all_albums')}}">View albums</a> </li>
-  <li><a href="{{url_for('get_all_photos')}}">View photos</a> </li>
+  <li><a href="{{url_for('get_all_albums')}}">View all albums</a> </li>
+  <li><a href="{{url_for('get_all_photos')}}">View all photos</a> </li>
   <li><a href='/login'>Login</a></li>
   <li><a href='/register'>Sign up</a></li>
 </ul>
-{% endif %}

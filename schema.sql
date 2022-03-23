@@ -47,6 +47,8 @@ CREATE TABLE Pictures (
 
 CREATE TABLE Tags (
   tag_name varchar(30),
+  num_used int4 DEFAULT 1,
+  CONSTRAINT tags_pk PRIMARY KEY (tag_name)
   CONSTRAINT tags_pk PRIMARY KEY (tag_name)
 );
 

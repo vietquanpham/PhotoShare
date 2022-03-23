@@ -18,6 +18,7 @@ from flask import Flask, Response, request, render_template, redirect, url_for
 from flaskext.mysql import MySQL
 import flask_login
 from datetime import datetime
+import collections
 
 #for image uploading
 import os, base64
@@ -167,12 +168,47 @@ def isAlbumOfCurrentUser(uid, aid):
 def getUsersPhotos(uid):
 	cursor = conn.cursor()
 	cursor.execute("SELECT imgdata, picture_id FROM Pictures WHERE user_id = '{0}'".format(uid))
-	return cursor.fetchall() #NOTE return a list of tuples, [(imgdata, pid, caption), ...]
+	return cursor.fetchall()
+
+def getUsersPhotosByTags(uid, tags):
+	t=tags.split(',')
+	cursor = conn.cursor()
+	photos = []
+	for tag in t:
+		cursor.execute("""
+						SELECT imgdata, picture_id FROM Pictures pics 
+						WHERE EXISTS (SELECT * FROM Tagged tg INNER JOIN
+               							Tags t ON t.tag_name = tg.tag_name
+              						    WHERE pics.picture_id = tg.picture_id
+                                        AND t.tag_name = '{0}' AND pics.user_id = '{1}')
+					   """.format(tag,uid))
+		photos+=cursor.fetchall()
+	return [photo for photo, count in collections.Counter(photos).items() if count == len(t)]  
+
+def getTop10Tags():
+	cursor = conn.cursor()
+	cursor.execute("SELECT tag_name FROM Tags ORDER BY num_used DESC LIMIT 10")
+	return cursor.fetchall()
 
 def getAllPhotos():
 	cursor = conn.cursor()
 	cursor.execute("SELECT imgdata, picture_id FROM Pictures")
 	return cursor.fetchall() 
+
+def getAllPhotosByTags(tags):
+	t=tags.split(',')
+	cursor = conn.cursor()
+	photos = []
+	for tag in t:
+		cursor.execute("""
+						SELECT imgdata, picture_id FROM Pictures pics 
+						WHERE EXISTS (SELECT * FROM Tagged tg INNER JOIN
+               							Tags t ON t.tag_name = tg.tag_name
+              						  WHERE pics.picture_id = tg.picture_id
+                                       AND t.tag_name = '{0}')
+					   """.format(tag))
+		photos+=cursor.fetchall()
+	return [photo for photo, count in collections.Counter(photos).items() if count == len(t)] 
 
 def getAllAlbums():
 	cursor = conn.cursor()
@@ -248,11 +284,16 @@ def upload_photo(album_id = -1):
 		uid = getUserIdFromEmail(flask_login.current_user.id)
 		imgfile = request.files['photo']
 		caption = request.form.get('caption')
+		tags = request.form.get('tags').split(',')
 		photo_data =imgfile.read()
 		cursor = conn.cursor()
 		cursor.execute('''INSERT INTO Pictures (imgdata, user_id, caption, album_id) VALUES (%s, %s, %s, %s)''', (photo_data, uid, caption,album_id))
+		pid = cursor.lastrowid
+		for tag in tags:
+			cursor.execute('''INSERT INTO Tags (tag_name) VALUES (%s) ON DUPLICATE KEY UPDATE num_used=num_used+1''', (tag))
+			cursor.execute('''INSERT INTO Tagged (picture_id, tag_name) VALUES (%s,%s)''', (pid,tag))
 		conn.commit()
-		return render_template('singleAlbumView.html', message='Photo uploaded!', photos=getAlbumsPhotos(album_id), base64=base64,name=getAlbumsName(album_id),aid=album_id)
+		return render_template('singleAlbumView.html', message='Photo uploaded!', photos=getAlbumsPhotos(album_id), base64=base64,name=getAlbumsName(album_id),aid=album_id,canDelete="true")
 	#The method is GET so we return a  HTML form to upload the a photo.
 	else:
 		return render_template('upload.html',aid=album_id)
@@ -326,10 +367,35 @@ def get_all_user_albums():
 def get_all_albums():
 	return render_template('allAlbumsView.html', albums=getAllAlbums())
 
-@app.route("/all_photos", methods=['GET'])
+@app.route("/all_photos", methods=['GET','POST'])
 def get_all_photos():
-	return render_template('allPhotosView.html', photos=getAllPhotos(),base64=base64)
+	if request.method == 'GET':
+		return render_template('allPhotosView.html', photos=getAllPhotos(),tags=getTop10Tags(),base64=base64)
+	else:
+		tags = request.form.get('tags')
+		return render_template('allPhotosView.html', photos=getAllPhotosByTags(tags),tags=getTop10Tags(),base64=base64)
 
+@app.route("/photos", methods=['GET','POST'])
+@flask_login.login_required
+def get_all_user_photos():
+	uid = getUserIdFromEmail(flask_login.current_user.id)
+	if request.method == 'GET':
+		return render_template('photosView.html', photos=getUsersPhotos(uid),tags=getTop10Tags(),base64=base64)
+	else:
+		tags = request.form.get('tags')
+		return render_template('photosView.html', photos=getUsersPhotosByTags(uid,tags),tags=getTop10Tags(),base64=base64)
+
+
+@app.route("/all_photos/<tags>", methods=['GET'])
+def get_all_photos_by_tags(tags=""):
+	assert tags != None or tags != ""
+	return render_template('allPhotosView.html', photos=getAllPhotosByTags(tags),tags=getTop10Tags(),base64=base64)
+
+@app.route("/photos/<tags>", methods=['GET'])
+def get_all_user_photos_by_tags(tags=""):
+	assert tags != None or tags != ""
+	uid = getUserIdFromEmail(flask_login.current_user.id)
+	return render_template('photosView.html', photos=getUsersPhotosByTags(uid,tags),tags=getTop10Tags(),base64=base64)
 
 
 #default page
@@ -342,4 +408,3 @@ if __name__ == "__main__":
 	#this is invoked when in the shell  you run
 	#$ python app.py
 	app.run(port=5000, debug=True)
-	
